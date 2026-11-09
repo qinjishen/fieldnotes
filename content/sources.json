@@ -1,0 +1,6 @@
+[
+  {"id":"et","title":"Essential Tennis","author":"Ian Westermann with Joel Chasnoff","detail":"2022 · St. Martin’s Griffin · 本批核对第 3、5、23 章","url":"https://us.macmillan.com/books/9781250765246/essentialtennis/","status":"已核对本地章节全文","note":"网站正文为短篇中文转述与独立整理。外链是出版社书目与节选页面，不能代替相应章节；各卡片列出实际使用的章节和范围。"},
+  {"id":"video","title":"Best Practices for Technical Video Analysis","author":"Alex Johansson & David Ramos","detail":"2018 · Tennis Techie · 教学实践文章","url":"https://www.tennistechie.com/blog/2018/9/10best-practices-for-video-analysis","status":"已核对作者原文","note":"本批使用 Angles、Play Back Speed、Side By Side 等部分的方法建议。它不是验证本网站整套流程效果的实验。"},
+  {"id":"kinovea","title":"Measuring angles","author":"Kinovea 官方文档","detail":"Angle → Note · 二维测角的适用条件","url":"https://www.kinovea.org/help/en/measurement/angle.html","status":"已核对官方说明","note":"仅用于说明测量边界，不据此提供理想关节角度或技术诊断。"},
+  {"id":"series","title":"网球观察与检验 · 写作资料","author":"本系列整理","detail":"2026-10-30 至 2026-11-01 · 现有文章与研究笔记","url":null,"status":"已回读现有材料","note":"主要包括《体感与录像怎样比对》《当日训练怎样记录》及第 1、2、9 篇草稿。卡片中的记录句式、比较顺序和假设示例属于本系列的教学整理。原始文件保留在本地。"}
+]
