@@ -6,7 +6,7 @@ import re
 def render(root, cards, sources, markdown, supporting, out):
     discovery = json.loads((root / 'content/discovery.json').read_text())
     questions, topics, profile = discovery['questions'], discovery['topics'], discovery['profile']
-    cards = sorted(cards, key=lambda c: (not c['original'], c['updated']), reverse=True)
+    cards = sorted(sorted(cards, key=lambda c: c['id']), key=lambda c: (not c['original'], c['updated']), reverse=True)
     tennis_cards = [c for c in cards if c['domain']=='tennis']
     fitness_cards = [c for c in cards if c['domain']=='fitness']
     for tag in sorted({tag for c in cards if not c['original'] for tag in c['tags']}):

@@ -12,11 +12,17 @@
 
 日常写作仍在原有“网球-网站/发布文档”文件夹完成；本仓库保存已发布内容快照。请不要在这里创建空的 `发布文档` 文件夹，它会切换为本地输入模式，替代导入快照。
 
-- `content/cards/`：原有原子文章。
-- `content/published.json`：已发布的导入文章快照。
+- `content/cards/`：原有卡片的已发布 Markdown 快照；日常在 Obsidian 的“发布文档”笔记库编辑。
+- `content/published.json`：全部已发布文章快照（含原有卡片和实际引用的附件信息）。
 - `content/discovery.json`：个人介绍、问题入口与主题。
 - `static/`：网页样式和交互。
 - `.github/workflows/pages.yml`：自动发布配置。
+
+## Obsidian 写作
+
+现有十一篇文章已集中到“发布文档”笔记库。打开其中的 `_开始写作.md`；使用实时预览编辑，按 Cmd+P 插入四种写作模板。保留每天北京时间上午 9 点的自动同步。
+
+详见 [Obsidian 写作与发布](docs/Obsidian写作与发布.md)。
 
 ## 提示词与笔记模板
 

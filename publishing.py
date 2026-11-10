@@ -57,16 +57,33 @@ def growth_metadata(c):
     c.update(stage=stage, short_title=str(c.get('short_title') or c['title']), event_date=event_date, is_template=is_template)
     if is_template: c['kind'] = '模板'
 
+
+def editable_original_ids(root):
+    """An explicit local handoff lets Obsidian own the original articles."""
+    config = Path(root)/INPUT/'.obsidian/fieldnotes.json'
+    if not config.exists(): return set()
+    data = json.loads(config.read_text())
+    ids = data.get('editable_original_ids', [])
+    if data.get('schema') != 1 or not isinstance(ids, list) or any(not isinstance(cid,str) or not re.fullmatch(r'[a-z0-9][a-z0-9-]{0,79}',cid) for cid in ids):
+        raise ValueError('Obsidian 网站编辑配置无效；请保留 .obsidian/fieldnotes.json')
+    return set(ids)
+
 class Library:
     def __init__(self, root, out):
         self.root, self.out = Path(root), Path(out)
         self.cards, self.warnings, self.downloads = [], [], {}
+        self.editable_originals = editable_original_ids(self.root)
+        snapshot_file = self.root/'content/published.json'
+        snapshot_cards = json.loads(snapshot_file.read_text()) if not (self.root/INPUT).exists() and snapshot_file.exists() else []
+        snapshot_originals = {c['id'] for c in snapshot_cards if c.get('original')}
         self.md = MarkdownIt('commonmark', {'html':False}).enable(['table','strikethrough']).use(footnote_plugin)
-        for base, original in [(self.root/'content/cards',True),(self.root/INPUT,False)]:
+        for base, original_source in [(self.root/'content/cards',True),(self.root/INPUT,False)]:
             for path in sorted(visible_files(base)):
                 if path.suffix.lower()!='.md' or not visible(path,base): continue
                 if path.is_symlink(): raise ValueError(f'请复制文件到发布目录，不要使用符号链接：{path.name}')
                 meta, body, raw = parse(path)
+                if original_source and str(meta.get('id')) in (self.editable_originals | snapshot_originals): continue
+                original = original_source or str(meta.get('id')) in self.editable_originals
                 if meta.get('draft') is True or meta.get('publish') is False: continue
                 if not body: continue
                 cid = str(meta.get('id') or 'n-'+hashlib.sha256(path.relative_to(base).as_posix().encode()).hexdigest()[:12])
@@ -88,7 +105,7 @@ class Library:
                 self.cards.append(c)
                 self.downloads[cid]=raw
         if not (self.root/INPUT).exists() and (self.root/'content/published.json').exists():
-            for c in json.loads((self.root/'content/published.json').read_text()):
+            for c in snapshot_cards:
                 c['_base']=self.root/INPUT
                 c['_path']=c['_base']/c.pop('_relative')
                 self.downloads[c['id']]=c.pop('_raw')
@@ -116,8 +133,15 @@ class Library:
     def snapshot(self):
         if not (self.root/INPUT).exists(): return
         exported=[]
+        # These files are publication snapshots; the vault is the editable source.
+        for cid in self.editable_originals:
+            dest = self.root/'content/cards'/f'{cid}.md'
+            if cid in self.by_id:
+                dest.write_text(self.downloads[cid], encoding='utf-8')
+            elif dest.exists():
+                dest.unlink()
         for c in self.cards:
-            if c['original']: continue
+            if c['original'] and c['id'] not in self.editable_originals: continue
             item={k:v for k,v in c.items() if k not in ('_base','_path')}
             item['_relative']=c['_path'].relative_to(c['_base']).as_posix()
             item['_raw']=self.downloads[c['id']]
@@ -212,9 +236,13 @@ class Library:
 def fingerprint(root):
     root=Path(root); h=hashlib.sha256()
     files=[]
+    editable = editable_original_ids(root)
+    config = root/INPUT/'.obsidian/fieldnotes.json'
+    if config.exists(): files.append(config)
+    snapshots = {root/'content/cards'/f'{cid}.md' for cid in editable}
     for folder in [INPUT,'content','static','docs','templates']:
         base=root/folder
-        files.extend(p for p in visible_files(base) if p.is_file() and visible(p,base) and p.name!='published.json' and 'published-assets' not in p.parts)
+        files.extend(p for p in visible_files(base) if p.is_file() and p not in snapshots and visible(p,base) and p.name!='published.json' and 'published-assets' not in p.parts)
     files.extend(p for pattern in ['*.py','requirements.txt'] for p in root.glob(pattern))
     for p in sorted(files):
         h.update(p.relative_to(root).as_posix().encode());h.update(b'\0')

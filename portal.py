@@ -8,7 +8,7 @@ def graph_data(cards, all_cards):
             if r['id'] not in ids or r['id']==c['id']:continue
             pair=tuple(sorted((c['id'],r['id'])))
             edges.setdefault(pair,[]).append({'from':c['id'],'to':r['id'],'type':r['type'],'reason':r['reason']})
-    return {'nodes':[{'id':c['id'],'title':c['title'],'summary':c['summary'],'tags':c['tags'],'body':c['body'],'aliases':c.get('aliases',[]),'domain':c['domain'],'stage':c.get('stage','foundation'),'short_title':c.get('short_title',c['title']),'event_date':c.get('event_date','')} for c in cards],
+    return {'nodes':[{'id':c['id'],'title':c['title'],'summary':c['summary'],'tags':c['tags'],'body':c['body'],'aliases':list(c.get('aliases',[])),'domain':c['domain'],'stage':c.get('stage','foundation'),'short_title':c.get('short_title',c['title']),'event_date':c.get('event_date','')} for c in cards],
             'edges':[{'a':a,'b':b,'relations':relations} for (a,b),relations in edges.items()],
             'related':{c['id']:[{'id':r['id'],'title':next(o['title'] for o in all_cards if o['id']==r['id']),'reason':r['reason'],'type':r['type']} for r in c['related']] + [{'id':o['id'],'title':o['title'],'reason':r['reason'],'type':'引用本篇'} for o in all_cards for r in o['related'] if r['id']==c['id'] and not any(a['id']==o['id'] for a in c['related'])] for c in cards}}
 
