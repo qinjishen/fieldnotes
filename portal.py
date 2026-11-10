@@ -8,19 +8,39 @@ def graph_data(cards, all_cards):
             if r['id'] not in ids or r['id']==c['id']:continue
             pair=tuple(sorted((c['id'],r['id'])))
             edges.setdefault(pair,[]).append({'from':c['id'],'to':r['id'],'type':r['type'],'reason':r['reason']})
-    return {'nodes':[{'id':c['id'],'title':c['title'],'summary':c['summary'],'tags':c['tags'],'body':c['body'],'aliases':c.get('aliases',[]),'domain':c['domain']} for c in cards],
+    return {'nodes':[{'id':c['id'],'title':c['title'],'summary':c['summary'],'tags':c['tags'],'body':c['body'],'aliases':c.get('aliases',[]),'domain':c['domain'],'stage':c.get('stage','foundation'),'short_title':c.get('short_title',c['title']),'event_date':c.get('event_date','')} for c in cards],
             'edges':[{'a':a,'b':b,'relations':relations} for (a,b),relations in edges.items()],
             'related':{c['id']:[{'id':r['id'],'title':next(o['title'] for o in all_cards if o['id']==r['id']),'reason':r['reason'],'type':r['type']} for r in c['related']] + [{'id':o['id'],'title':o['title'],'reason':r['reason'],'type':'引用本篇'} for o in all_cards for r in o['related'] if r['id']==c['id'] and not any(a['id']==o['id'] for a in c['related'])] for c in cards}}
 
+
+def render_growth_home(out, cards, profile, base):
+    e = lambda value: html.escape(str(value), quote=True)
+    selected = sorted((c for c in cards if not c.get('is_template')), key=lambda c: (c.get('event_date', ''), c['id']), reverse=True)
+    data = graph_data(selected, cards)
+    (out/'growth-graph.json').write_text(json.dumps(data, ensure_ascii=False))
+    stages = [('foundation', '积累', '知识 · 技术 · 训练'), ('application', '应用', '复盘 · 策略 · 调整'), ('progress', '进展', '比赛 · 成果 · 突破')]
+    groups = []
+    for index, (stage, label, description) in enumerate(stages):
+        group = [c for c in selected if c.get('stage','foundation') == stage]
+        # Knowledge uses stable IDs. Dated progress appears newest first.
+        if stage != 'progress': group.sort(key=lambda c: c['id'])
+        links = []
+        for c in group:
+            stamp = f'<time datetime="{e(c["event_date"])}">{e(c["event_date"])}</time>' if c.get('event_date') else ''
+            links.append(f'<a class="growth-note" data-growth-id="{e(c["id"])}" data-stage="{stage}" href="cards/{e(c["id"])}.html" aria-label="阅读：{e(c["title"])}"><span class="growth-dot" aria-hidden="true"></span><span class="growth-note-copy"><span class="growth-note-title">{e(c.get("short_title",c["title"]))}</span>{stamp}</span></a>')
+        empty = '<p class="growth-empty">新的进展，<br>将在这里留下记录。</p>' if stage=='progress' else '<p class="growth-empty">等待第一篇笔记。</p>'
+        groups.append(f'<section class="growth-group stage-{stage}" aria-labelledby="stage-{stage}"><header><h2 id="stage-{stage}"><span class="stage-number">0{index+1}</span>{label}</h2><p>{description}</p></header><div class="growth-notes">{"".join(links) if links else empty}</div></section>')
+    body = f'''<main id="main" class="growth-home">
+<header class="growth-header"><div class="growth-identity"><h1><a href="index.html">场边笔记<span aria-hidden="true">.</span></a></h1><p>把知识带进训练，把经历写成笔记。</p></div><nav class="growth-nav" aria-label="首页导航"><form action="search.html" role="search" class="growth-search"><label for="growth-query" class="sr-only">搜索全部笔记</label><input id="growth-query" type="search" name="q" placeholder="查找问题或笔记" autocomplete="off"><button type="submit" aria-label="搜索"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg></button></form><a href="search.html">全部笔记</a><a href="profile.html">关于我</a></nav></header>
+<div class="growth-field" id="growth-field"><svg class="growth-lines" aria-hidden="true"></svg><div class="growth-groups">{"".join(groups)}</div></div>
+<div id="growth-tooltip" class="growth-tooltip" role="tooltip" hidden><strong></strong><p></p></div>
+<div class="growth-bottom"><span>停留查看关联，点击阅读。</span><button id="growth-motion" type="button" aria-pressed="false" hidden>暂停动态</button></div>
+</main>'''
+    (out/'index.html').write_text(base('首页', body, home=True, desc='把知识带进训练，把经历写成笔记。沿着积累、应用与进展，阅读彼此关联的成长笔记。'))
+
 def render_portal(root,out,cards,profile,base,layout,topics):
     e=lambda x:html.escape(str(x),quote=True)
-    counts={d:sum(c['domain']==d for c in cards) for d in ('tennis','fitness','plans')}
-    home=f'''<main id="main" class="orbit-home"><section class="orbit-intro"><a class="small-brand" href="index.html"><span class="brand-dot"></span> QINJISHEN / FIELDNOTES</a><div class="intro-main"><p class="eyebrow">学习 · 实践 · 建立联系</p><h1>场边笔记<span>.</span></h1><p class="intro-lead">一个观点，一篇文章。<br>在联系中理解，在训练中检验。</p><p class="intro-description">{e(profile['intro'])}</p><form class="home-search" action="search.html" role="search"><label for="home-query">从一个问题开始</label><div><input type="search" name="q" id="home-query" placeholder="查找问题或文章" autocomplete="off"><button type="submit" aria-label="搜索文章">↗</button></div></form><div class="intro-links"><a href="search.html">全部文章 <span>{len(cards)}</span></a><a href="paths.html">阅读路线 ↗</a></div></div><div class="orbit-signature"><span>{e(profile['name'])} 的学习笔记</span><a href="about.html">关于这些笔记 ↗</a></div></section><section class="orbit-right" aria-label="选择一个主题"><div class="orbit-caption"><span>四个入口，持续生长的笔记。</span><button id="motion-toggle" type="button" aria-pressed="false">暂停浮动</button></div><nav class="orbit-cluster" aria-label="主题入口">
-<a class="orbit orbit-tennis" href="tennis.html"><span class="orbit-kicker">01 / TENNIS</span><strong>网球</strong><span>{counts['tennis']} 篇文章 · 探索联系 ↗</span></a>
-<a class="orbit orbit-fitness" href="fitness.html"><span class="orbit-kicker">02 / FITNESS</span><strong>健身</strong><span>{str(counts['fitness'])+' 篇文章' if counts['fitness'] else '笔记正在生长'} ↗</span></a>
-<a class="orbit orbit-plans" href="plans.html"><span class="orbit-kicker">03 / PRACTICE</span><strong>训练计划</strong><span>周计划 · 阶段安排 ↗</span></a>
-<a class="orbit orbit-profile" href="profile.html"><span class="orbit-kicker">04 / ABOUT</span><strong>个人简介</strong><span>认识这里的作者 ↗</span></a></nav><div class="orbit-bottom"><span class="tiny-dot"></span><p>从一个主题出发，找到一篇值得读的文章。</p></div></section></main>'''
-    (out/'index.html').write_text(base('首页',home,home=True))
+    render_growth_home(out, cards, profile, base)
     for domain,label,english in [('tennis','网球','TENNIS'),('fitness','健身','FITNESS')]:
         selected=[c for c in cards if c['domain']==domain]
         data=graph_data(selected,cards)

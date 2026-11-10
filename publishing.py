@@ -1,7 +1,7 @@
 """Markdown input, Obsidian links and deterministic publication snapshots."""
 from pathlib import Path
 from urllib.parse import unquote, quote, urlsplit
-from datetime import datetime
+from datetime import datetime, date
 import hashlib, html, json, re, shutil, os
 import yaml
 from markdown_it import MarkdownIt
@@ -36,6 +36,26 @@ def parse(path):
         if not isinstance(meta, dict): raise ValueError(f'{path.name}: 文档属性需要是键值列表')
         body = raw[match.end():]
     return meta, body.strip(), raw
+
+
+STAGES = ('foundation', 'application', 'progress')
+
+def growth_metadata(c):
+    """Normalize display metadata for both local notes and published snapshots."""
+    stage = str(c.get('stage') or 'foundation')
+    if stage not in STAGES:
+        raise ValueError(f'{c["title"]}: stage 请填写 foundation、application 或 progress')
+    event_date = str(c.get('event_date') or '')
+    if event_date:
+        try:
+            if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', event_date): raise ValueError()
+            date.fromisoformat(event_date)
+        except ValueError:
+            raise ValueError(f'{c["title"]}: event_date 请填写真实发生日期 YYYY-MM-DD')
+    # Legacy log templates are identified by their explicit folder, never by body text.
+    is_template = str(c.get('kind', '')).lower() in ('template', '模板') or any(part in ('模板', '模版') for part in c['_path'].relative_to(c['_base']).parts)
+    c.update(stage=stage, short_title=str(c.get('short_title') or c['title']), event_date=event_date, is_template=is_template)
+    if is_template: c['kind'] = '模板'
 
 class Library:
     def __init__(self, root, out):
@@ -75,6 +95,7 @@ class Library:
                 self.cards.append(c)
             assets=self.root/'content/published-assets'
             if assets.exists(): shutil.copytree(assets,out/'assets',dirs_exist_ok=True)
+        for c in self.cards: growth_metadata(c)
         self.by_id={c['id']:c for c in self.cards}
         if len(self.by_id)!=len(self.cards): raise ValueError('文章 id 重复，请为不同文章设置不同 id')
         self.lookup={}
@@ -191,7 +212,7 @@ class Library:
 def fingerprint(root):
     root=Path(root); h=hashlib.sha256()
     files=[]
-    for folder in [INPUT,'content','static']:
+    for folder in [INPUT,'content','static','docs','templates']:
         base=root/folder
         files.extend(p for p in visible_files(base) if p.is_file() and visible(p,base) and p.name!='published.json' and 'published-assets' not in p.parts)
     files.extend(p for pattern in ['*.py','requirements.txt'] for p in root.glob(pattern))
